@@ -62,6 +62,7 @@ When you have enough info, say "Great, I have everything I need! Generating your
   }
 });
 
-app.listen(3000, () => {
-  console.log('✅ PRD Generator running at http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ PRD Generator running on port ${PORT}`);
 });
