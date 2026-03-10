@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRD Generator — AI-Powered</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #080b0f;
+      --surface: #0e1318;
+      --surface2: #141a22;
+      --border: #1e2830;
+      --border2: #243040;
+      --accent: #00d4ff;
+      --accent2: #0099cc;
+      --green: #00e5a0;
+      --text: #e8edf2;
+      --text2: #8899aa;
+      --text3: #4a5a6a;
+      --user-bg: #00d4ff;
+      --user-text: #080b0f;
+      --prd-bg: #0a1520;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: -200px;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0,212,255,0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -200px;
+      right: -200px;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(0,229,160,0.03) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header */
+    header {
+      position: relative;
+      z-index: 10;
+      background: rgba(8,11,15,0.95);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(20px);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    .header-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      padding: 3px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .status-text {
+      font-size: 12px;
+      color: var(--text3);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Main layout */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Chat panel */
+    .chat-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      min-width: 0;
+    }
+
+    .panel-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+    }
+
+    .panel-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .step-counter {
+      margin-left: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
+    }
+
+    #chat-container::-webkit-scrollbar { width: 4px; }
+    #chat-container::-webkit-scrollbar-track { background: transparent; }
+    #chat-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* Messages */
+    .message-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      animation: fadeUp 0.3s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-wrap.user { align-items: flex-end; }
+    .message-wrap.assistant { align-items: flex-start; }
+
+    .message-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: 0.5px;
+      padding: 0 4px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      line-height: 1.65;
+    }
+
+    .message.user {
+      background: var(--accent);
+      color: var(--user-text);
+      border-bottom-right-radius: 4px;
+      font-weight: 500;
+    }
+
+    .message.assistant {
+      background: var(--surface2);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* Typing indicator */
+    .typing-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+      animation: fadeUp 0.3s ease;
+    }
+
+    .typing {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 14px 18px;
+      border-radius: 14px;
+      border-bottom-left-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: typingBounce 1.2s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Input area */
+    .input-area {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #user-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 11px 16px;
+      color: var(--text);
+      font-size: 13.5px;
+      font-family: 'DM Sans', sans-serif;
+      resize: none;
+      outline: none;
+      min-height: 44px;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    #user-input:focus { border-color: var(--accent); }
+    #user-input::placeholder { color: var(--text3); }
+
+    .send-btn {
+      background: var(--accent);
+      color: var(--user-text);
+      border: none;
+      border-radius: 12px;
+      width: 44px;
+      height: 44px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover { background: var(--accent2); transform: scale(1.05); }
+    .send-btn:disabled { background: var(--border2); cursor: not-allowed; transform: none; color: var(--text3); }
+
+    /* PRD Panel */
+    .prd-panel {
+      width: 480px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      transition: width 0.3s ease;
+    }
+
+    .prd-panel.empty {
+      width: 320px;
+    }
+
+    .prd-panel-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .prd-panel-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .prd-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border2);
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text2);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,212,255,0.05);
+    }
+
+    .action-btn.primary {
+      background: var(--green);
+      color: #080b0f;
+      border-color: var(--green);
+      font-weight: 600;
+    }
+
+    .action-btn.primary:hover {
+      background: #00c988;
+      color: #080b0f;
+      border-color: #00c988;
+    }
+
+    .action-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* PRD content */
+    #prd-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
+    }
+
+    #prd-container::-webkit-scrollbar { width: 4px; }
+    #prd-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .prd-empty-state {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: var(--text3);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .prd-empty-icon {
+      font-size: 40px;
+      opacity: 0.3;
+    }
+
+    .prd-empty-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text3);
+    }
+
+    .prd-empty-sub {
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.6;
+      max-width: 200px;
+    }
+
+    /* PRD Document */
+    #prd-content {
+      display: none;
+    }
+
+    #prd-content.visible {
+      display: block;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .prd-doc-header {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .prd-doc-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .prd-doc-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+
+    .prd-doc-meta {
+      display: flex;
+      gap: 16px;
+    }
+
+    .prd-meta-item {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .prd-meta-item span {
+      color: var(--text2);
+    }
+
+    /* PRD Sections */
+    .prd-section {
+      margin-bottom: 24px;
+    }
+
+    .prd-section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .prd-section-icon {
+      font-size: 14px;
+    }
+
+    .prd-section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .prd-section-body {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text2);
+      padding-left: 22px;
+      border-left: 2px solid var(--border);
+    }
+
+    .prd-section-body[contenteditable="true"] {
+      outline: none;
+      border-left-color: var(--accent);
+      background: rgba(0,212,255,0.02);
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .prd-section-body ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .prd-section-body ul li::before {
+      content: '→ ';
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Edit mode toggle */
+    .edit-mode-bar {
+      display: none;
+      padding: 10px 24px;
+      background: rgba(0,212,255,0.05);
+      border-bottom: 1px solid rgba(0,212,255,0.15);
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .edit-mode-bar.visible {
+      display: flex;
+    }
+
+    .edit-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .prd-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">PRD<span>.</span>AI</div>
+    <div class="header-badge">GPT-4o</div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div class="status-text">ONLINE</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Chat Panel -->
+  <div class="chat-panel">
+    <div class="panel-header">
+      <div class="panel-title">Conversation</div>
+      <div class="step-counter" id="step-counter">Step 0 / 5</div>
+    </div>
+
+    <div id="chat-container"></div>
+
+    <div class="input-area">
+      <textarea id="user-input" placeholder="Describe your feature or product idea..." rows="1"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">→</button>
+    </div>
+  </div>
+
+  <!-- PRD Panel -->
+  <div class="prd-panel empty" id="prd-panel">
+    <div class="prd-panel-header">
+      <div class="prd-panel-title">PRD Output</div>
+      <div class="prd-actions">
+        <button class="action-btn" id="edit-btn" onclick="toggleEdit()" disabled>✏ Edit</button>
+        <button class="action-btn primary" id="export-btn" onclick="exportPDF()" disabled>↓ Export PDF</button>
+      </div>
+    </div>
+
+    <div class="edit-mode-bar" id="edit-mode-bar">
+      <div class="edit-dot"></div>
+      Editing mode — click any section to modify
+    </div>
+
+    <div id="prd-container">
+      <div class="prd-empty-state" id="prd-empty">
+        <div class="prd-empty-icon">📄</div>
+        <div class="prd-empty-title">PRD will appear here</div>
+        <div class="prd-empty-sub">Answer the AI's questions and your PRD will be generated automatically</div>
+      </div>
+
+      <div id="prd-content"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const sessionId = 'session_' + Date.now();
+  let stepCount = 0;
+  let isEditMode = false;
+  let rawPRD = '';
+
+  const chatContainer = document.getElementById('chat-container');
+  const userInput = document.getElementById('user-input');
+  const sendBtn = document.getElementById('send-btn');
+  const stepCounter = document.getElementById('step-counter');
+  const prdPanel = document.getElementById('prd-panel');
+  const prdEmpty = document.getElementById('prd-empty');
+  const prdContent = document.getElementById('prd-content');
+  const editBtn = document.getElementById('edit-btn');
+  const exportBtn = document.getElementById('export-btn');
+  const editModeBar = document.getElementById('edit-mode-bar');
+
+  // Auto-resize textarea
+  userInput.addEventListener('input', () => {
+    userInput.style.height = 'auto';
+    userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+  });
+
+  userInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  window.onload = async () => {
+    await sendToServer("Hello, I want to create a PRD.");
+  };
+
+  function addMessage(role, content) {
+    const wrap = document.createElement('div');
+    wrap.className = `message-wrap ${role}`;
+
+    const label = document.createElement('div');
+    label.className = 'message-label';
+    label.textContent = role === 'user' ? 'YOU' : 'AI AGENT';
+
+    const msg = document.createElement('div');
+    msg.className = `message ${role}`;
+    msg.textContent = content;
+
+    wrap.appendChild(label);
+    wrap.appendChild(msg);
+    chatContainer.appendChild(wrap);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  function showTyping() {
+    const wrap = document.createElement('div');
+    wrap.className = 'typing-wrap';
+    wrap.id = 'typing-indicator';
+
+    const label = document.createElement('div');
+    label.className = 'message-label';
+    label.textContent = 'AI AGENT';
+
+    const typing = document.createElement('div');
+    typing.className = 'typing';
+    typing.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+
+    wrap.appendChild(label);
+    wrap.appendChild(typing);
+    chatContainer.appendChild(wrap);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  async function sendMessage() {
+    const message = userInput.value.trim();
+    if (!message || sendBtn.disabled) return;
+
+    addMessage('user', message);
+    userInput.value = '';
+    userInput.style.height = 'auto';
+    stepCount++;
+    stepCounter.textContent = `Step ${Math.min(stepCount, 5)} / 5`;
+    await sendToServer(message);
+  }
+
+  async function sendToServer(message) {
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, sessionId })
+      });
+
+      const data = await res.json();
+      removeTyping();
+      addMessage('assistant', data.reply);
+
+      if (data.reply.includes('Problem Statement') || data.reply.includes('Functional Requirements')) {
+        rawPRD = data.reply;
+        renderPRD(data.reply);
+        stepCounter.textContent = '✓ Complete';
+      }
+
+    } catch (err) {
+      removeTyping();
+      addMessage('assistant', '⚠ Connection error. Make sure the server is running.');
+    }
+
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
+
+  function renderPRD(text) {
+    // Show PRD panel fully
+    prdPanel.classList.remove('empty');
+    prdEmpty.style.display = 'none';
+    prdContent.classList.add('visible');
+
+    // Enable buttons
+    editBtn.disabled = false;
+    exportBtn.disabled = false;
+
+    // Parse sections
+    const sections = [
+      { icon: '🎯', key: 'Problem Statement' },
+      { icon: '👥', key: 'Target Users' },
+      { icon: '🏆', key: 'Goals' },
+      { icon: '📖', key: 'User Stories' },
+      { icon: '⚙️', key: 'Functional Requirements' },
+      { icon: '🚫', key: 'Out of Scope' },
+      { icon: '❓', key: 'Open Questions' },
+    ];
+
+    // Extract title from first line or use default
+    const titleMatch = text.match(/(?:PRD:|Product:|Feature:)\s*(.+)/i);
+    const docTitle = titleMatch ? titleMatch[1] : 'Product Requirements Document';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    let html = `
+      <div class="prd-doc-header">
+        <div class="prd-doc-tag">PRD — v1.0</div>
+        <div class="prd-doc-title" id="prd-title" contenteditable="false">${docTitle}</div>
+        <div class="prd-doc-meta">
+          <div class="prd-meta-item">DATE <span>${dateStr}</span></div>
+          <div class="prd-meta-item">STATUS <span style="color: var(--green)">DRAFT</span></div>
+        </div>
+      </div>
+    `;
+
+    // Split text into sections by ## headers
+    const parts = text.split(/^##\s+/m).filter(Boolean);
+
+    parts.forEach(part => {
+      const lines = part.split('\n');
+      const headerLine = lines[0].trim();
+      const body = lines.slice(1).join('\n').trim();
+
+      if (!body) return;
+
+      // Find matching section for icon
+      const match = sections.find(s => headerLine.toLowerCase().includes(s.key.toLowerCase()));
+      const icon = match ? match.icon : '📌';
+
+      // Clean up the body text - convert bullet points
+      const cleanBody = body
+        .replace(/^[-*•]\s+/gm, '<li>')
+        .replace(/^\d+\.\s+/gm, '<li>');
+
+      const hasListItems = cleanBody.includes('<li>');
+
+      const bodyContent = hasListItems
+        ? `<ul>${cleanBody.split('\n').filter(l => l.trim()).map(l =>
+            l.startsWith('<li>') ? `<li>${l.replace('<li>', '')}</li>` : `<p>${l}</p>`
+          ).join('')}</ul>`
+        : `<p>${body.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
+
+      html += `
+        <div class="prd-section">
+          <div class="prd-section-header">
+            <span class="prd-section-icon">${icon}</span>
+            <span class="prd-section-title">${headerLine.replace(/[🎯👥🏆📖⚙️🚫❓]/g, '').trim()}</span>
+          </div>
+          <div class="prd-section-body" id="section-${headerLine.replace(/\s+/g, '-').toLowerCase()}" contenteditable="false">
+            ${bodyContent}
+          </div>
+        </div>
+      `;
+    });
+
+    prdContent.innerHTML = html;
+  }
+
+  function toggleEdit() {
+    isEditMode = !isEditMode;
+
+    const sections = document.querySelectorAll('.prd-section-body, #prd-title');
+    sections.forEach(s => {
+      s.contentEditable = isEditMode ? 'true' : 'false';
+    });
+
+    editBtn.textContent = isEditMode ? '✓ Done' : '✏ Edit';
+    editModeBar.classList.toggle('visible', isEditMode);
+  }
+
+  function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const margin = 20;
+    const pageWidth = 210;
+    const contentWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    // Colors
+    const dark = [8, 11, 15];
+    const accent = [0, 212, 255];
+    const textDark = [20, 26, 34];
+    const textGray = [136, 153, 170];
+    const textLight = [232, 237, 242];
+    const green = [0, 229, 160];
+
+    // Background
+    doc.setFillColor(...dark);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Header bar
+    doc.setFillColor(...textDark);
+    doc.rect(0, 0, 210, 22, 'F');
+
+    // Accent line
+    doc.setFillColor(...accent);
+    doc.rect(0, 22, 210, 0.8, 'F');
+
+    // Logo text
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...textLight);
+    doc.text('PRD.AI', margin, 14);
+
+    // Version badge area
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...textGray);
+    doc.text('v1.0 · DRAFT', margin + 20, 14);
+
+    // Date top right
+    const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    doc.text(now, 210 - margin, 14, { align: 'right' });
+
+    y = 36;
+
+    // PRD Tag
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...accent);
+    doc.text('PRODUCT REQUIREMENTS DOCUMENT', margin, y);
+    y += 7;
+
+    // Title
+    const titleEl = document.getElementById('prd-title');
+    const title = titleEl ? titleEl.textContent : 'Product Requirements Document';
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(...textLight);
+    const titleLines = doc.splitTextToSize(title, contentWidth);
+    doc.text(titleLines, margin, y);
+    y += titleLines.length * 8 + 6;
+
+    // Divider
+    doc.setDrawColor(...textDark);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, 210 - margin, y);
+    y += 10;
+
+    // Sections
+    const sectionEls = document.querySelectorAll('.prd-section');
+
+    sectionEls.forEach((section) => {
+      const titleEl = section.querySelector('.prd-section-title');
+      const iconEl = section.querySelector('.prd-section-icon');
+      const bodyEl = section.querySelector('.prd-section-body');
+
+      if (!titleEl || !bodyEl) return;
+
+      const sectionTitle = (iconEl ? iconEl.textContent + ' ' : '') + titleEl.textContent;
+      const bodyText = bodyEl.innerText || bodyEl.textContent;
+
+      // Check if we need a new page
+      if (y > 250) {
+        doc.addPage();
+        doc.setFillColor(...dark);
+        doc.rect(0, 0, 210, 297, 'F');
+        y = margin;
+      }
+
+      // Section header background
+      doc.setFillColor(...textDark);
+      doc.roundedRect(margin, y - 4, contentWidth, 10, 2, 2, 'F');
+
+      // Accent left bar
+      doc.setFillColor(...accent);
+      doc.rect(margin, y - 4, 2, 10, 'F');
+
+      // Section title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...accent);
+      doc.text(sectionTitle.toUpperCase(), margin + 6, y + 2);
+      y += 12;
+
+      // Section body
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...textGray);
+
+      const lines = doc.splitTextToSize(bodyText, contentWidth - 8);
+      lines.forEach(line => {
+        if (y > 275) {
+          doc.addPage();
+          doc.setFillColor(...dark);
+          doc.rect(0, 0, 210, 297, 'F');
+          y = margin;
+        }
+        doc.text('  ' + line, margin + 4, y);
+        y += 5;
+      });
+
+      y += 6;
+    });
+
+    // Footer on last page
+    doc.setFillColor(...textDark);
+    doc.rect(0, 285, 210, 12, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...textGray);
+    doc.text('Generated by PRD.AI · Confidential', margin, 292);
+    doc.setTextColor(...accent);
+    doc.text('prd.ai', 210 - margin, 292, { align: 'right' });
+
+    doc.save(`PRD_${title.replace(/\s+/g, '_').substring(0, 30)}_${Date.now()}.pdf`);
+  }
+</script>
+
+</body>
+</html>
